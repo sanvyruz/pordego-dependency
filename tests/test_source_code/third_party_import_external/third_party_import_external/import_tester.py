@@ -1,4 +1,7 @@
-import requests
+from requests import HTTPError
+from requests.auth import HTTPBasicAuth
 
-
-requests.get("hi")
+try:
+    auth = HTTPBasicAuth()
+except HTTPError:
+    pass

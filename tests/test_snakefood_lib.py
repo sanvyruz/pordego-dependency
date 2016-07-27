@@ -1,8 +1,10 @@
 import os
 import unittest
 
+import subprocess
+
 from pordego_dependency.dependency_config import DependencyCheckInput
-from pordego_dependency.snakefood_lib import find_package_paths, preload_packages, DependencyChecker
+from pordego_dependency.snakefood_lib import find_package_paths, preload_packages, DependencyChecker, is_builtin
 from snakefood.find import find_dotted_module, module_cache
 
 SOURCE_PATH = "test_source_code"
@@ -11,6 +13,7 @@ NS_PKG_2_NAME = "ns_pkg_2"
 NAMESPACE_PKG = "namespacepkg"
 TP_PKG = "third_party_import_pkg"
 OTHER_PKG = "other_package"
+LOCAL_PACKAGE = "local_package"
 
 
 class TestSnakefoodLib(unittest.TestCase):
@@ -34,6 +37,20 @@ class TestSnakefoodLib(unittest.TestCase):
         self.assertEqual(module_1_expected_path, find_dotted_module(NAMESPACE_PKG, "module_1", None, 0)[0])
         self.assertEqual(module_2_expected_path, find_dotted_module("namespacepkg.module_2", "test_method_2", None, 0)[0])
         self.assertEqual(module_2_expected_path, find_dotted_module(NAMESPACE_PKG, "module_2", None, 0)[0])
+
+
+class TestThirdPartyDetection(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        subprocess.check_call("pip install {}".format(os.path.join(SOURCE_PATH, LOCAL_PACKAGE)), shell=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        subprocess.check_call("pip uninstall {} -y".format(LOCAL_PACKAGE), shell=True)
+
+    def test_is_builtin_local_install_subpackage(self):
+        """Imports in __init__ files are correctly reported as built in packages"""
+        self.assertTrue(is_builtin(os.path.join("local_package", "subpackage")))
 
 
 class TestDependencyChecker(unittest.TestCase):

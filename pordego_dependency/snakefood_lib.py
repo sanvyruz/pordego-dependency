@@ -121,7 +121,7 @@ def is_builtin(module_path):
     if match_file:
         module_name = match_file.group(1).replace(os.path.sep, ".")
     else:
-        module_name = module_path
+        module_name = module_path.replace(os.path.sep, ".")
     if module_name in sys.builtin_module_names:
         return True
     try:
