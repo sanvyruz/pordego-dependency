@@ -3,97 +3,78 @@ Helper file for testing dependencies. Uses snakefood
 """
 
 import os
-import re
-from importlib import import_module
 from os.path import *
-from operator import itemgetter
 
-import sys
-from snakefood.roots import find_roots, relfile
-from snakefood.util import iter_pyfiles, is_python
 import snakefood.find as finder
+from pordego_dependency.dependency_tools import Dependency, is_builtin
 from snakefood.fallback.collections import defaultdict
+from snakefood.roots import relfile
+from snakefood.util import iter_pyfiles, is_python
 
 
-class DependencyChecker(object):
-    """
-    Class to check dependency for the files
-    """
-
-    def __init__(self, input_package, files, ignore_list=None, source_path=None):
+class DependencyBuilder(object):
+    def __init__(self, input_package, files, ignore_list=None, source_path=None, root_cache=None):
         self.input_package = input_package
         self.files = files
         self.ignores = ignore_list or []
-        self.all_files = defaultdict(set)
         self.all_errors = []
-        self.processed_files = set()
         self.source_paths = source_path or []
+        self.root_cache = root_cache or {}
 
     def load_dependencies(self):
         """
         Find all the dependencies.
         Taken from snakefood/gendeps.py
         """
-        fiter = iter_pyfiles(self.files, self.ignores, False)
-        in_roots = find_roots(self.files, self.ignores)
-
-        for fn in fiter:
-            if fn in self.processed_files:
+        file_iter = iter_pyfiles(self.files, self.ignores, False)
+        in_roots = set(self._split_dependency_path(fn)[0] for fn in self.files)
+        processed_files = set()
+        dependency_details = set()
+        for fn in file_iter:
+            if fn in processed_files or not is_python(fn):
                 continue  # Make sure we process each file only once.
-            self.processed_files.add(fn)
-            if is_python(fn):
-                files, errors = finder.find_dependencies(
-                    fn, verbose=False, process_pragmas=True, ignore_unused=True)
+            processed_files.add(fn)
+            dependency_details |= self._build_dependencies(fn, in_roots)
+        return dependency_details
 
-                self.all_errors.extend(errors)
-            else:
-                files = []
-            if basename(fn) == '__init__.py':
-                fn = dirname(fn)
+    def _build_dependencies(self, file_name, in_roots):
+        files, errors = finder.find_dependencies(
+            file_name, verbose=False, process_pragmas=True, ignore_unused=False)
+        if basename(file_name) == '__init__.py':
+            file_name = dirname(file_name)
+        from_root, from_path = self._split_dependency_path(file_name)
+        dependent_files = self._get_dependencies_from_paths(in_roots, files)
+        return {Dependency(from_root, from_path, to_root, to_path) for to_root, to_path in dependent_files
+                if not is_builtin(to_root, to_path)}
 
-            self._add_dependencies(fn, in_roots, files)
-
-    def get_external_dependencies(self, ignore_dependencies=None):
+    def _get_dependencies_from_paths(self, in_roots, files):
         """
-        :param ignore_dependencies: Allowed external dependency list
-        :return: set of external dependencies
-        """
-        all_dependency_details = set()
-        all_matched_inputs = set()
-        for (from_root, from_), targets in sorted(self.all_files.iteritems(), key=itemgetter(0)):
-            for to_root, to_ in sorted(targets):
-                matched_data = self._get_match(os.path.join(to_root, to_), ignore_dependencies)
-                if not matched_data:
-                    if is_builtin(to_):
-                        continue
-                    all_dependency_details.add(DependencyDetail(from_root, from_, to_root, to_, to_))
-                else:
-                    all_matched_inputs.add(matched_data)
-        return all_dependency_details
-
-    def _add_dependencies(self, fn, in_roots, files):
-        """
-        :param fn: file name
         :param in_roots: in list of dir / files in root
-        :param files: depended files
-        Modified in this method.
+        :param files: dependent files
+        :return: set of dependency paths
         """
-        from_ = relfile(fn, [])
-        if from_ is None:
-            return None
-
-        # Add the dependencies.
-        for dfn in files:
+        dependency_paths = set()
+        for dfn in set(files):
             xfn = dfn
             if basename(xfn) == '__init__.py':
                 xfn = dirname(xfn)
 
-            to_ = relfile(xfn, [])
+            to_ = self._split_dependency_path(xfn)
             into = to_[0] in in_roots
             if into:
                 # Skip internal dependency.
                 continue
-            self.all_files[from_].add(to_)
+            dependency_paths.add(to_)
+        return dependency_paths
+
+    def _split_dependency_path(self, file_name):
+        if file_name in self.root_cache:
+            root = self.root_cache[file_name]
+            dep_path = file_name[len(root)+1:]
+        else:
+            root, dep_path = relfile(file_name, [])
+            self.root_cache[file_name] = root
+        return root, dep_path
 
     def _get_match(self, file_data, check_match_data_list):
         """
@@ -103,9 +84,9 @@ class DependencyChecker(object):
         """
         if not check_match_data_list:
             return None
-        file_data_items = file_data.split(os.sep)
         for check_match_data in check_match_data_list:
             for source in self.source_paths:
+                file_data_items = file_data.split(os.sep)
                 if source in file_data_items and check_match_data in file_data_items:
                     return check_match_data
         return None
@@ -116,60 +97,19 @@ def find_package_paths(source_roots, ignores=None):
             if os.path.basename(path) == "setup.py"}
 
 
-def is_builtin(module_path):
-    match_file = re.match(r"(.*)(.py|.pyd|.so|.pyo)$", module_path)
-    if match_file:
-        module_name = match_file.group(1).replace(os.path.sep, ".")
-    else:
-        module_name = module_path.replace(os.path.sep, ".")
-    if module_name in sys.builtin_module_names:
-        return True
-    try:
-        import_module(module_name)
-    except ImportError:
-        return False
-    return True
-
-
-class DependencyDetail(object):
-    """
-    Detail of flagging a file as dependent.
-    """
-
-    def __init__(self, from_root, from_file, to_root, to_file, matched_dependency):
-        self.from_root = from_root
-        self.to_root = to_root
-        self.from_file = from_file
-        self.to_file = to_file
-        self.matched_dependency = matched_dependency
-
-    @property
-    def source_package(self):
-        """Source package name"""
-        return os.path.basename(self.from_root)
-
-    @property
-    def target_package(self):
-        """Target package name"""
-        return self.to_file.split(os.path.sep)[0]
-
-    def __str__(self):
-        return "{} is dependent on {}. Dependencies from {} to {} ({}) are not allowed".format(self.from_file,
-                                                                                               self.to_file,
-                                                                                               self.source_package,
-                                                                                               self.target_package,
-                                                                                               self.to_root)
-
-    def __hash__(self):
-        return hash("{},{},{}".format(self.from_root, self.from_file, self.matched_dependency))
+def find_package_names(source_roots, ignores=None):
+    return [os.path.basename(path) for path in find_package_paths(source_roots, ignores=ignores)]
 
 
 def preload_packages(source_paths, ignores=None):
     all_package_roots = find_package_paths(source_paths, ignores)
+    cache = {}
     for package_path in all_package_roots:
         pyfiles = iter_pyfiles([package_path], [], False)
         for fn in pyfiles:
             cache_package(fn, package_path)
+            cache[fn] = package_path
+    return cache
 
 
 def cache_package(fn, root):

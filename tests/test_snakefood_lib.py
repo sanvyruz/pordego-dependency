@@ -4,7 +4,8 @@ import unittest
 import subprocess
 
 from pordego_dependency.dependency_config import DependencyCheckInput
-from pordego_dependency.snakefood_lib import find_package_paths, preload_packages, DependencyChecker, is_builtin
+from pordego_dependency.snakefood_lib import find_package_paths, preload_packages, DependencyBuilder
+from pordego_dependency.dependency_tools import is_builtin
 from snakefood.find import find_dotted_module, module_cache
 
 SOURCE_PATH = "test_source_code"
@@ -77,7 +78,7 @@ class TestDependencyChecker(unittest.TestCase):
 
     def check_dependencies(self, package_name, expected, ignores=None):
         package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH])
-        self.checker = DependencyChecker(package_name, package.files, source_path=package.source_paths)
+        self.checker = DependencyBuilder(package_name, package.files, source_path=package.source_paths)
         self.checker.load_dependencies()
         deps = self.checker.get_external_dependencies(ignore_dependencies=ignores)
         dep_package_list = [dep.target_package for dep in deps]
