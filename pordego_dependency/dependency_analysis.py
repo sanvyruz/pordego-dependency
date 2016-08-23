@@ -3,8 +3,7 @@ from logging import getLogger
 from operator import itemgetter
 
 from pordego_dependency.dependency_config import DependencyConfig
-from pordego_dependency.dependency_tools import filter_local_dependencies, filter_ignored_dependencies, \
-    filter_builtin_packages
+from pordego_dependency.dependency_tools import filter_local_dependencies, filter_ignored_dependencies
 from pordego_dependency.requirements_analysis import analyze_requirements
 from pordego_dependency.snakefood_lib import DependencyBuilder, preload_packages
 
@@ -25,7 +24,7 @@ def analyze_dependency(config_dict):
     :return:
     """
     config = build_config(config_dict)
-    dependency_result = DependencyResult()
+    dependency_result = DependencyAnalysisResult()
     analyse_cyclic_dependency(config)
     root_cache = preload_packages(config.source_paths)
 
@@ -42,13 +41,14 @@ def analyze_package_dependencies(dependency_check_input, config, dependency_resu
                                            source_path=config.source_paths,
                                            root_cache=root_cache)
     all_dependencies = dependency_builder.load_dependencies()
+    local_depends = filter_local_dependencies(all_dependencies, config.source_paths)
     if config.check_requirements:
+        # when third part requirements checking works, should use all_dependencies here
         dependency_result.update_requirements_results(dependency_check_input.package_path,
                                                       *analyze_requirements(dependency_check_input.package_path,
-                                                                            filter_builtin_packages(all_dependencies)))
+                                                                            local_depends))
     if dependency_check_input.allowed_dependency:
-        non_ignored_depends = filter_ignored_dependencies(filter_local_dependencies(all_dependencies,
-                                                                                    config.source_paths),
+        non_ignored_depends = filter_ignored_dependencies(local_depends,
                                                           dependency_check_input.allowed_dependency)
         dependency_result.update_invalid_dependencies(non_ignored_depends)
 
@@ -64,7 +64,7 @@ def analyse_cyclic_dependency(config):
             raise AssertionError(msg)
 
 
-class DependencyResult(object):
+class DependencyAnalysisResult(object):
     def __init__(self):
         self.missing_requirements = []
         self.extra_requirements = []
