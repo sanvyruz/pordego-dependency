@@ -85,6 +85,9 @@ class DependencyConfig(object):
         self._check_cyclic = check_cyclic
         self._check_requirements = check_requirements
         self._ignore = ignore
+        self.ignore_third_party = kw.get("ignore_third_party")
+        self.package_server_url = kw.get("package_server_url")
+        self.pip_options = kw.get("pip_options")
 
     @property
     def root(self):

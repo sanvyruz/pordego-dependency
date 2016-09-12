@@ -3,30 +3,27 @@ Helper file for testing dependencies. Uses snakefood
 """
 
 import os
-from os.path import *
 
 import snakefood.find as finder
-from pordego_dependency.dependency_tools import Dependency, is_builtin
+from pordego_dependency.dependency_tools import Dependency, is_builtin_root, UNKNOWN_PACKAGE
 from snakefood.fallback.collections import defaultdict
 from snakefood.roots import relfile
 from snakefood.util import iter_pyfiles, is_python
 
 
 class DependencyBuilder(object):
-    def __init__(self, input_package, files, ignore_list=None, source_path=None, root_cache=None):
+    def __init__(self, input_package, files, source_path=None, root_cache=None):
         self.input_package = input_package
         self.files = files
-        self.ignores = ignore_list or []
         self.all_errors = []
         self.source_paths = source_path or []
         self.root_cache = root_cache or {}
 
-    def load_dependencies(self):
+    def build(self):
         """
-        Find all the dependencies.
-        Taken from snakefood/gendeps.py
+        Find all the dependencies
         """
-        file_iter = iter_pyfiles(self.files, self.ignores, False)
+        file_iter = iter_pyfiles(self.files, None, abspaths=False)
         in_roots = set(self._split_dependency_path(fn)[0] for fn in self.files)
         processed_files = set()
         dependency_details = set()
@@ -34,18 +31,18 @@ class DependencyBuilder(object):
             if fn in processed_files or not is_python(fn):
                 continue  # Make sure we process each file only once.
             processed_files.add(fn)
-            dependency_details |= self._build_dependencies(fn, in_roots)
+            dependency_details |= self._build_dependencies_for_file(fn, in_roots)
         return dependency_details
 
-    def _build_dependencies(self, file_name, in_roots):
+    def _build_dependencies_for_file(self, file_name, in_roots):
         files, errors = finder.find_dependencies(
             file_name, verbose=False, process_pragmas=True, ignore_unused=False)
-        if basename(file_name) == '__init__.py':
-            file_name = dirname(file_name)
+        if os.path.basename(file_name) == '__init__.py':
+            file_name = os.path.dirname(file_name)
         from_root, from_path = self._split_dependency_path(file_name)
         dependent_files = self._get_dependencies_from_paths(in_roots, files)
         return {Dependency(from_root, from_path, to_root, to_path) for to_root, to_path in dependent_files
-                if not is_builtin(to_root, to_path)}
+                if not is_builtin_root(to_root)}
 
     def _get_dependencies_from_paths(self, in_roots, files):
         """
@@ -56,8 +53,8 @@ class DependencyBuilder(object):
         dependency_paths = set()
         for dfn in set(files):
             xfn = dfn
-            if basename(xfn) == '__init__.py':
-                xfn = dirname(xfn)
+            if os.path.basename(xfn) == '__init__.py':
+                xfn = os.path.dirname(xfn)
 
             to_ = self._split_dependency_path(xfn)
             into = to_[0] in in_roots
@@ -84,9 +81,9 @@ class DependencyBuilder(object):
         """
         if not check_match_data_list:
             return None
+        file_data_items = file_data.split(os.sep)
         for check_match_data in check_match_data_list:
             for source in self.source_paths:
-                file_data_items = file_data.split(os.sep)
                 if source in file_data_items and check_match_data in file_data_items:
                     return check_match_data
         return None
@@ -139,12 +136,12 @@ def find_dotted_module(modname, rname, parentdir, level):
     """
     # Check for builtins.
     if modname in finder.builtin_module_names:
-        return join(finder.libpath, modname), None
+        return os.path.join(finder.libpath, modname), None
 
     errors = []
     names = modname.split('.')
     for i in range(level - 1):
-        parentdir = dirname(parentdir)
+        parentdir = os.path.dirname(parentdir)
     # Try relative import, then global imports.
     fn = finder.find_dotted(names, parentdir)
     if not fn:
@@ -154,8 +151,7 @@ def find_dotted_module(modname, rname, parentdir, level):
                 finder.module_cache[modname].append(fn)
         file_names = finder.module_cache[modname]
         if not file_names:
-            errors.append((finder.ERROR_IMPORT, modname))
-            return None, errors
+            file_names = [os.path.join(UNKNOWN_PACKAGE, modname)]
         fn = file_names[0]
     else:
         file_names = [fn]
@@ -164,13 +160,13 @@ def find_dotted_module(modname, rname, parentdir, level):
     if rname:
         fn2 = None
         for name in file_names:
-            fn2 = finder.find_dotted([rname], dirname(name))
+            fn2 = finder.find_dotted([rname], os.path.dirname(name))
             if fn2:
                 break
         if fn2:
             fn = fn2
         else:
-            errors.append((finder.ERROR_SYMBOL, '.'.join((modname, rname))))
+            pass
             # Pass-thru and return the filename of the parent, which was found.
 
     return fn, errors

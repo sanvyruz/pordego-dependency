@@ -3,6 +3,8 @@ import re
 import sys
 from importlib import import_module
 
+UNKNOWN_PACKAGE = "UNKNOWN"
+
 
 def filter_local_dependencies(dependencies, local_source_paths):
     """
@@ -26,6 +28,8 @@ def filter_ignored_dependencies(dependencies, ignore_dependency_names):
 
 
 def is_ignored(dependency, ignore_dependency_names):
+    if ignore_dependency_names is None:
+        return False
     return dependency.target_package in ignore_dependency_names
 
 
@@ -34,23 +38,27 @@ def filter_builtin_packages(dependencies):
     return filter(lambda dep: not dep.is_builtin, dependencies)
 
 
-def is_builtin(root_path, module_path):
-    if "site-packages" in root_path:
-        return False
-    if root_path.startswith(os.path.dirname(sys.executable)):
-        return True
+def is_builtin_root(root_path):
+    if os.path.basename(os.path.dirname(sys.executable)) in ["bin", "Scripts"]:
+        python_basedir = os.path.split(os.path.dirname(sys.executable))[0]
+    else:
+        python_basedir = os.path.dirname(sys.executable)
+    return "site-packages" not in root_path and root_path.startswith(python_basedir)
+
+
+def is_builtin_module(module_path):
     match_file = re.match(r"(.*)(.py|.pyd|.so|.pyo)$", module_path)
     if match_file:
         module_name = match_file.group(1).replace(os.path.sep, ".")
     else:
-        module_name = module_path
+        module_name = module_path.replace(os.path.sep, ".")
     if module_name in sys.builtin_module_names:
         return True
     try:
         import_module(module_name)
     except ImportError:
         return False
-    return False
+    return True
 
 
 class Dependency(object):
@@ -69,8 +77,10 @@ class Dependency(object):
     def target_package(self):
         """Target (dependency) package name"""
         if "site-packages" in self.to_root:
-            path_parts = os.path.split(self.to_file)
-            package_name = filter(lambda x: x, path_parts)[0]
+            path_parts = self.to_file.split(os.path.sep)
+            package_name = path_parts[0]
+        elif self.is_unknown:
+            return self.to_file
         else:
             package_name = os.path.basename(self.to_root)
         return package_name
@@ -78,7 +88,12 @@ class Dependency(object):
     @property
     def is_builtin(self):
         """Returns true if the dependent package is a built in package"""
-        return is_builtin(self.to_root, self.to_file)
+        return is_builtin_root(self.to_root)
+
+    @property
+    def is_unknown(self):
+        """Returns True if the package is unknown such as an uninstalled third party package or bad import"""
+        return os.path.basename(self.to_root) == UNKNOWN_PACKAGE
 
     @property
     def target_path(self):
@@ -94,3 +109,5 @@ class Dependency(object):
 
     def __eq__(self, other):
         return (self.source_package, self.target_package) == (other.source_package, other.target_package)
+
+
