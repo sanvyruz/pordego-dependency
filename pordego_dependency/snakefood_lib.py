@@ -1,4 +1,3 @@
-
 """
 Helper file for testing dependencies. Uses snakefood
 """
@@ -20,6 +19,7 @@ class DependencyChecker(object):
     """
     Class to check dependency for the files
     """
+
     def __init__(self, input_package, files, ignore_list=None, source_path=None):
         self.input_package = input_package
         self.files = files
@@ -64,7 +64,7 @@ class DependencyChecker(object):
             for to_root, to_ in sorted(targets):
                 matched_data = self._get_match(os.path.join(to_root, to_), ignore_dependencies)
                 if not matched_data:
-                    if is_builtin(to_root, to_):
+                    if is_builtin(to_):
                         continue
                     all_dependency_details.add(DependencyDetail(from_root, from_, to_root, to_, to_))
                 else:
@@ -103,9 +103,9 @@ class DependencyChecker(object):
         """
         if not check_match_data_list:
             return None
+        file_data_items = file_data.split(os.sep)
         for check_match_data in check_match_data_list:
             for source in self.source_paths:
-                file_data_items = file_data.split(os.sep)
                 if source in file_data_items and check_match_data in file_data_items:
                     return check_match_data
         return None
@@ -116,14 +116,12 @@ def find_package_paths(source_roots, ignores=None):
             if os.path.basename(path) == "setup.py"}
 
 
-def is_builtin(root_path, module_path):
-    if "site-packages" in root_path:
-        return False
+def is_builtin(module_path):
     match_file = re.match(r"(.*)(.py|.pyd|.so|.pyo)$", module_path)
     if match_file:
         module_name = match_file.group(1).replace(os.path.sep, ".")
     else:
-        module_name = module_path
+        module_name = module_path.replace(os.path.sep, ".")
     if module_name in sys.builtin_module_names:
         return True
     try:
@@ -137,6 +135,7 @@ class DependencyDetail(object):
     """
     Detail of flagging a file as dependent.
     """
+
     def __init__(self, from_root, from_file, to_root, to_file, matched_dependency):
         self.from_root = from_root
         self.to_root = to_root
@@ -144,13 +143,22 @@ class DependencyDetail(object):
         self.to_file = to_file
         self.matched_dependency = matched_dependency
 
+    @property
+    def source_package(self):
+        """Source package name"""
+        return os.path.basename(self.from_root)
+
+    @property
+    def target_package(self):
+        """Target package name"""
+        return self.to_file.split(os.path.sep)[0]
+
     def __str__(self):
-        source_package = os.path.basename(self.from_root)
-        target_package = self.to_file.split(os.path.sep)[0]
-        return "{} is dependent on {}. Dependencies from {} to {} are not allowed".format(self.from_file,
-                                                                                          self.to_file,
-                                                                                          source_package,
-                                                                                          target_package)
+        return "{} is dependent on {}. Dependencies from {} to {} ({}) are not allowed".format(self.from_file,
+                                                                                               self.to_file,
+                                                                                               self.source_package,
+                                                                                               self.target_package,
+                                                                                               self.to_root)
 
     def __hash__(self):
         return hash("{},{},{}".format(self.from_root, self.from_file, self.matched_dependency))
@@ -226,6 +234,7 @@ def find_dotted_module(modname, rname, parentdir, level):
             # Pass-thru and return the filename of the parent, which was found.
 
     return fn, errors
+
 
 # monkey patch find so that it works with namespace packages
 finder.module_cache = defaultdict(list)
