@@ -1,7 +1,10 @@
 from logging import getLogger
 
+import time
 from pordego_dependency.dependency_config import DependencyConfig
-from pordego_dependency.snakefood_lib import DependencyChecker, preload_packages
+from pordego_dependency.dependency_tools import filter_local_dependencies, filter_ignored_dependencies
+from pordego_dependency.requirements_analysis import RequirementsAnalyzer
+from pordego_dependency.snakefood_lib import DependencyBuilder, preload_packages
 
 logger = getLogger(__name__)
 
@@ -20,25 +23,68 @@ def analyze_dependency(config_dict):
     :return:
     """
     config = build_config(config_dict)
-    all_dependencies = set()
     analyse_cyclic_dependency(config)
-    preload_packages(config.source_paths)
-    for dependency_check_input in config.dependency_inputs:
-        dependency_checker = DependencyChecker(dependency_check_input.input_package,
+    root_cache = preload_packages(config.source_paths)
+
+    package_dependency_map = build_package_dependencies(config, root_cache)
+    analyses = [RequirementsAnalyzer(config)]
+    analyze_results([analyzer.analyze(package_dependency_map) for analyzer in analyses])
+
+
+def analyze_results(results):
+    """
+    Check the results of the dependency analyses and report errors
+
+    :type results: list[pordego_dependency.analysis_result.AnalysisResult]
+    :raise: AssertionError
+    """
+    errors = []
+    for result in results:
+        if result.has_error:
+            errors.extend(result.error_messages)
+    if errors:
+        raise AssertionError("\n\n".join(errors))
+
+
+def log_time(f):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        try:
+            return f(*args, **kwargs)
+        finally:
+            logger.info("Completed in %s s", time.time() - start_time)
+    return wrapper
+
+
+@log_time
+def build_package_dependencies(config, root_cache):
+    package_dependency_map = {}
+    logger.info("Building package dependency map for %s packages...", len(config.dependency_inputs))
+    for dependency_check_input in sorted(config.dependency_inputs, key=lambda dep: dep.input_package):
+        dependency_builder = DependencyBuilder(dependency_check_input.input_package,
                                                dependency_check_input.files,
                                                source_path=config.source_paths,
-                                               )
-        dependency_checker.load_dependencies()
-        all_dependency_details = dependency_checker.get_external_dependencies(
-            ignore_dependencies=dependency_check_input.allowed_dependency
-        )
-        if all_dependency_details:
-            all_dependencies.update(all_dependency_details)
+                                               root_cache=root_cache)
+        package_dependency_map[dependency_check_input.package_path] = dependency_builder.build()
+    return package_dependency_map
 
-    if all_dependencies:
-        msg = "Found {} dependency violations:\n{}".format(len(all_dependencies),
-                                                           "\n".join([str(i) for i in all_dependencies]))
-        raise AssertionError(msg)
+
+def analyze_package_dependencies(dependency_check_input, config, dependency_result, root_cache):
+    dependency_builder = DependencyBuilder(dependency_check_input.input_package,
+                                           dependency_check_input.files,
+                                           source_path=config.source_paths,
+                                           root_cache=root_cache)
+    all_dependencies = dependency_builder.build()
+    local_depends = filter_local_dependencies(all_dependencies, config.source_paths)
+    if config.check_requirements:
+        # when third part requirements checking works, should use all_dependencies here
+        dependency_result.update_requirements_results(dependency_check_input.package_path,
+                                                      *analyze_requirements(dependency_check_input.package_path,
+                                                                            all_dependencies))
+    if dependency_check_input.allowed_dependency:
+        non_ignored_depends = filter_ignored_dependencies(local_depends,
+                                                          dependency_check_input.allowed_dependency)
+        dependency_result.update_invalid_dependencies(non_ignored_depends)
 
 
 def analyse_cyclic_dependency(config):

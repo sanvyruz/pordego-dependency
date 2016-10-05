@@ -4,7 +4,9 @@ import unittest
 import subprocess
 
 from pordego_dependency.dependency_config import DependencyCheckInput
-from pordego_dependency.snakefood_lib import find_package_paths, preload_packages, DependencyChecker, is_builtin
+from pordego_dependency.snakefood_lib import find_package_paths, preload_packages, DependencyBuilder
+from pordego_dependency.dependency_tools import filter_ignored_dependencies, filter_local_dependencies, \
+    is_builtin_module
 from snakefood.find import find_dotted_module, module_cache
 
 SOURCE_PATH = "test_source_code"
@@ -50,20 +52,22 @@ class TestThirdPartyDetection(unittest.TestCase):
 
     def test_is_builtin_local_install_subpackage(self):
         """Imports in __init__ files are correctly reported as built in packages"""
-        self.assertTrue(is_builtin(os.path.join("local_package", "subpackage")))
+        self.assertTrue(is_builtin_module(os.path.join("local_package", "subpackage")))
 
 
-class TestDependencyChecker(unittest.TestCase):
+class TestDependencyBuilder(unittest.TestCase):
     def setUp(self):
         preload_packages([SOURCE_PATH])
 
     def test_import_installed_package_third_party(self):
-        """Third party packages installed in the environment should not be reported as dependencies"""
-        self.check_dependencies(TP_PKG, [])
+        """Third party packages installed in the environment should be removed from the list of dependencies
+        when filter_local_dependencies is called"""
+        self.check_dependencies(TP_PKG, [], filter_local=True)
 
     def test_import_not_installed_third_party(self):
-        """Third party packages which are not installed in the local environment should be ignored"""
-        self.check_dependencies("third_party_import_external", [])
+        """Third party packages which are not installed in the local environment should be removed from the list of dependencies
+        when filter_local_dependencies is called"""
+        self.check_dependencies("third_party_import_external", [], filter_local=True)
 
     def test_import_local_package(self):
         """Packages under the source roots should be included in the dependencies"""
@@ -73,13 +77,18 @@ class TestDependencyChecker(unittest.TestCase):
         """Namespace packages are included in dependency lists"""
         # namespacepkg shows up twice because there are two imports in module_tester to modules
         # in two different packages
-        self.check_dependencies(OTHER_PKG, [NAMESPACE_PKG, NAMESPACE_PKG])
+        self.check_dependencies(OTHER_PKG, [NS_PKG_1_NAME, NS_PKG_2_NAME])
 
-    def check_dependencies(self, package_name, expected, ignores=None):
-        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH])
-        self.checker = DependencyChecker(package_name, package.files, source_path=package.source_paths)
-        self.checker.load_dependencies()
-        deps = self.checker.get_external_dependencies(ignore_dependencies=ignores)
+    def test_import_builtin(self):
+        """Builtin packages should not show up in the list of dependencies"""
+        self.check_dependencies("builtin_import_pkg", [])
+
+    def check_dependencies(self, package_name, expected, ignores=None, filter_local=False):
+        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH], ignores=["setup.py"])
+        self.checker = DependencyBuilder(package_name, package.files, source_path=package.source_paths)
+        deps = filter_ignored_dependencies(self.checker.build(), ignores)
+        if filter_local:
+            deps = filter_local_dependencies(deps, [SOURCE_PATH])
         dep_package_list = [dep.target_package for dep in deps]
         print "Found deps\n{}\n".format(format_deps(deps))
         self.assertItemsEqual(expected, dep_package_list)
