@@ -14,7 +14,7 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 2.7"
 ]
 
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 
 setup(
     name='pordego-dependency',
