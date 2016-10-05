@@ -26,7 +26,7 @@ setup(
     url="https://github.com/ttreptow/pordego-dependency",
     download_url="https://github.com/ttreptow/pordego-dependency/tarball/{}".format(VERSION),
     packages=find_packages(exclude=('tests', 'docs', "tests.*")),
-    install_requires=["snakefood"],
+    install_requires=["snakefood", "requests"],
     classifiers=CLASSIFIERS,
     entry_points={'pordego.analysis': ["dependency = pordego_dependency.dependency_analysis:analyze_dependency"]},
 )
