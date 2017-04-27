@@ -14,7 +14,7 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 2.7"
 ]
 
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 
 setup(
     name='pordego-dependency',
@@ -28,5 +28,5 @@ setup(
     packages=find_packages(exclude=('tests', 'docs', "tests.*")),
     install_requires=["snakefood", "requests"],
     classifiers=CLASSIFIERS,
-    entry_points={'pordego.analysis': ["dependency = pordego_dependency.dependency_analysis:analyze_dependency"]},
+    entry_points={'pordego.analysis': ["dependency = pordego_dependency.entry_point:analyze_dependency"]},
 )

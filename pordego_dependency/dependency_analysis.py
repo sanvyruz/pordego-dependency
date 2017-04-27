@@ -1,133 +1,44 @@
 from logging import getLogger
 
-import time
-from pordego_dependency.dependency_config import DependencyConfig
+from pordego_dependency.analysis_result import AnalysisResult
+from pordego_dependency.analyzer import Analyzer
 from pordego_dependency.dependency_tools import filter_local_dependencies, filter_ignored_dependencies
-from pordego_dependency.requirements_analysis import RequirementsAnalyzer
-from pordego_dependency.snakefood_lib import DependencyBuilder, preload_packages
 
 logger = getLogger(__name__)
 
 
-def build_config(config_dict):
-    if config_dict is None:
-        raise Exception("No config specified")
-    return DependencyConfig(**config_dict)
+class DependencyAnalyzer(Analyzer):
+    def __init__(self, config):
+        self._config = config
+
+    def analyze(self, package_dependency_map):
+        result = DependencyAnalysisResult()
+        for dependency_input in self._config.dependency_inputs:
+            dependencies = package_dependency_map[dependency_input.package_path]
+            local_depends = filter_local_dependencies(dependencies, self._config.source_paths)
+            if dependency_input.allowed_dependency:
+                non_ignored_depends = filter_ignored_dependencies(local_depends,
+                                                                  dependency_input.allowed_dependency)
+                result.update_invalid_dependencies(non_ignored_depends)
+        return result
 
 
-def analyze_dependency(config_dict):
-    """
-    Analyzes Dependency
+class DependencyAnalysisResult(AnalysisResult):
+    def __init__(self):
+        self.invalid_dependencies = set()
 
-    :param config_dict: dictionary parsed from config file
-    :return:
-    """
-    config = build_config(config_dict)
-    analyse_cyclic_dependency(config)
-    root_cache = preload_packages(config.source_paths)
+    def update_invalid_dependencies(self, invalid_deps):
+        self.invalid_dependencies |= set(invalid_deps)
 
-    package_dependency_map = build_package_dependencies(config, root_cache)
-    analyses = [RequirementsAnalyzer(config)]
-    analyze_results([analyzer.analyze(package_dependency_map) for analyzer in analyses])
+    @property
+    def has_error(self):
+        return any([self.invalid_dependencies])
 
-
-def analyze_results(results):
-    """
-    Check the results of the dependency analyses and report errors
-
-    :type results: list[pordego_dependency.analysis_result.AnalysisResult]
-    :raise: AssertionError
-    """
-    errors = []
-    for result in results:
-        if result.has_error:
-            errors.extend(result.error_messages)
-    if errors:
-        raise AssertionError("\n\n".join(errors))
-
-
-def log_time(f):
-    def wrapper(*args, **kwargs):
-        start_time = time.time()
-        try:
-            return f(*args, **kwargs)
-        finally:
-            logger.info("Completed in %s s", time.time() - start_time)
-    return wrapper
-
-
-@log_time
-def build_package_dependencies(config, root_cache):
-    package_dependency_map = {}
-    logger.info("Building package dependency map for %s packages...", len(config.dependency_inputs))
-    for dependency_check_input in sorted(config.dependency_inputs, key=lambda dep: dep.input_package):
-        dependency_builder = DependencyBuilder(dependency_check_input.input_package,
-                                               dependency_check_input.files,
-                                               source_path=config.source_paths,
-                                               root_cache=root_cache)
-        package_dependency_map[dependency_check_input.package_path] = dependency_builder.build()
-    return package_dependency_map
-
-
-def analyze_package_dependencies(dependency_check_input, config, dependency_result, root_cache):
-    dependency_builder = DependencyBuilder(dependency_check_input.input_package,
-                                           dependency_check_input.files,
-                                           source_path=config.source_paths,
-                                           root_cache=root_cache)
-    all_dependencies = dependency_builder.build()
-    local_depends = filter_local_dependencies(all_dependencies, config.source_paths)
-    if config.check_requirements:
-        # when third part requirements checking works, should use all_dependencies here
-        dependency_result.update_requirements_results(dependency_check_input.package_path,
-                                                      *analyze_requirements(dependency_check_input.package_path,
-                                                                            all_dependencies))
-    if dependency_check_input.allowed_dependency:
-        non_ignored_depends = filter_ignored_dependencies(local_depends,
-                                                          dependency_check_input.allowed_dependency)
-        dependency_result.update_invalid_dependencies(non_ignored_depends)
-
-
-def analyse_cyclic_dependency(config):
-    """
-    Raise exception when there is dependency cycle and check is true in config
-    """
-    validator = DependencyInputValidator(config.dependency_inputs)
-    if validator.is_cyclic():
-        msg = ("Found cyclic dependency in {}".format(validator.dependency_inputs))
-        if config.check_cyclic:
-            raise AssertionError(msg)
-
-
-class DependencyInputValidator(object):
-    """
-    Class to validate dependency input
-    """
-
-    def __init__(self, dependency_inputs):
-        """
-
-        :param dependency_inputs: List of DependencyCheckInput objects
-        """
-        self.dependency_inputs = {
-            dc.input_package: dc.allowed_dependency for dc in dependency_inputs
-            }
-
-    def is_cyclic(self):
-        """
-        Determines if there is a cycle in dependency input by trying to do a topological sort
-        :return: bool
-        """
-        while self.dependency_inputs:
-            depended_packages = set()
-            for package in self.dependency_inputs.keys():
-                for dependencies in self.dependency_inputs.itervalues():
-                    if dependencies and package in dependencies:
-                        depended_packages.add(package)
-                        break
-            non_depended_packages = set(self.dependency_inputs.keys()).difference(depended_packages)
-            for package in non_depended_packages:
-                self.dependency_inputs.pop(package)
-
-            if not non_depended_packages and self.dependency_inputs:
-                return True
-        return False
+    @property
+    def error_messages(self):
+        errors = []
+        if self.invalid_dependencies:
+            errors.append("Found {} dependency violations:\n{}".format(len(self.invalid_dependencies),
+                                                                       "\n".join([str(i) for i in
+                                                                                  self.invalid_dependencies])))
+        return errors

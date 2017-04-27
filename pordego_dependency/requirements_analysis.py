@@ -3,13 +3,14 @@ from operator import itemgetter
 
 import pkg_resources
 from pordego_dependency.analysis_result import AnalysisResult
+from pordego_dependency.analyzer import Analyzer
 from pordego_dependency.requirement_resolver import RequirementResolver, get_top_level_packages, get_distribution, \
     CachedDistribution
 
 logger = getLogger(__name__)
 
 
-class RequirementsAnalyzer(object):
+class RequirementsAnalyzer(Analyzer):
     def __init__(self, analysis_config):
         """
         :type analysis_config: pordego_dependency.dependency_config.DependencyConfig
