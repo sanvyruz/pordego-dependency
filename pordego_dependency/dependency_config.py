@@ -1,6 +1,7 @@
 import fnmatch
 import glob
 import os
+from snakefood.util import iter_pyfiles
 
 from pordego_dependency.snakefood_lib import find_package_names
 
@@ -34,7 +35,8 @@ class DependencyCheckInput(object):
         """
         :return: files under input package
         """
-        return self._filter_ignores(self.package_path)
+        return [found_file for found_file in iter_pyfiles([self.package_path], None, abspaths=False)
+                if not self._is_ignored(found_file)]
 
     @property
     def allowed_dependency(self):
@@ -54,17 +56,13 @@ class DependencyCheckInput(object):
                 return parents_list[0]
         raise Exception("Could not find package {} in paths {}".format(self.input_package, self.source_paths))
 
-    def _filter_ignores(self, parent_dir):
-        return [os.path.join(parent_dir, path) for path in os.listdir(parent_dir)
-                if not self._should_remove(path)]
-
-    def _should_remove(self, path):
+    def _is_ignored(self, path):
         if isinstance(self.ignores, basestring):
             ignore_globs = [self.ignores]
         else:
             ignore_globs = self.ignores
-        for inore_glob in ignore_globs:
-            if fnmatch.fnmatch(path, inore_glob):
+        for ignore_glob in ignore_globs:
+            if fnmatch.fnmatch(path, ignore_glob):
                 return True
         return False
 

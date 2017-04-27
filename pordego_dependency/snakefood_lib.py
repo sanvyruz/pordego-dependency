@@ -23,11 +23,10 @@ class DependencyBuilder(object):
         """
         Find all the dependencies
         """
-        file_iter = iter_pyfiles(self.files, None, abspaths=False)
         in_roots = set(self._split_dependency_path(fn)[0] for fn in self.files)
         processed_files = set()
         dependency_details = set()
-        for fn in file_iter:
+        for fn in self.files:
             if fn in processed_files or not is_python(fn):
                 continue  # Make sure we process each file only once.
             processed_files.add(fn)
