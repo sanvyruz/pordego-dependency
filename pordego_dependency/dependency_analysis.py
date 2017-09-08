@@ -16,7 +16,7 @@ class DependencyAnalyzer(Analyzer):
         for dependency_input in self._config.dependency_inputs:
             dependencies = package_dependency_map[dependency_input.package_path]
             local_depends = filter_local_dependencies(dependencies, self._config.source_paths)
-            if dependency_input.allowed_dependency:
+            if dependency_input.allowed_dependency is not None:
                 non_ignored_depends = filter_ignored_dependencies(local_depends,
                                                                   dependency_input.allowed_dependency)
                 result.update_invalid_dependencies(non_ignored_depends)
