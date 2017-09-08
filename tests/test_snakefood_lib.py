@@ -84,7 +84,7 @@ class TestDependencyBuilder(unittest.TestCase):
         self.check_dependencies("builtin_import_pkg", [])
 
     def check_dependencies(self, package_name, expected, ignores=None, filter_local=False):
-        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH], ignores=["setup.py"])
+        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH], ignores=["*setup.py"])
         self.checker = DependencyBuilder(package_name, package.files, source_path=package.source_paths)
         deps = filter_ignored_dependencies(self.checker.build(), ignores)
         if filter_local:
