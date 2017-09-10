@@ -15,7 +15,7 @@ class DependencyCheckInput(object):
         :param allowed_dependency: Allowed dependency
         """
         self.input_package = input_package
-        self._allowed_dependency = allowed_dependency or []
+        self._allowed_dependency = allowed_dependency
         self.source_paths = source_paths or []
         self.root = root or "."
         self.ignores = ignores or ""
@@ -43,7 +43,7 @@ class DependencyCheckInput(object):
         """
         :return: Package names along with alias as seen by build environment
         """
-        return set(self._allowed_dependency)
+        return self._allowed_dependency
 
     def _find_package_path(self):
         for source_path in self.source_paths:
