@@ -9,17 +9,11 @@ from pordego_dependency.dependency_tools import filter_ignored_dependencies, fil
     is_builtin_module
 from snakefood.find import find_dotted_module, module_cache
 
-SOURCE_PATH = "test_source_code"
-NS_PKG_1_NAME = "ns_pkg_1"
-NS_PKG_2_NAME = "ns_pkg_2"
-NAMESPACE_PKG = "namespacepkg"
-TP_PKG = "third_party_import_pkg"
-OTHER_PKG = "other_package"
-LOCAL_PACKAGE = "local_package"
+from tests.test_source_code_names import SOURCE_PATH, NS_PKG_1_NAME, NAMESPACE_PKG, NS_PKG_2_NAME, LOCAL_PACKAGE, \
+    TP_PKG, OTHER_PKG, IMPORT_LOCAL_DEPS_PKG
 
 
 class TestSnakefoodLib(unittest.TestCase):
-
     def tearDown(self):
         module_cache.clear()
 
@@ -35,9 +29,11 @@ class TestSnakefoodLib(unittest.TestCase):
         module_1_expected_path = os.path.abspath(os.path.join(SOURCE_PATH, NS_PKG_1_NAME, NAMESPACE_PKG, "module_1.py"))
         module_2_expected_path = os.path.abspath(os.path.join(SOURCE_PATH, NS_PKG_2_NAME, NAMESPACE_PKG, "module_2.py"))
 
-        self.assertEqual(module_1_expected_path, find_dotted_module("namespacepkg.module_1", "test_method_1", None, 0)[0])
+        self.assertEqual(module_1_expected_path,
+                         find_dotted_module("namespacepkg.module_1", "test_method_1", None, 0)[0])
         self.assertEqual(module_1_expected_path, find_dotted_module(NAMESPACE_PKG, "module_1", None, 0)[0])
-        self.assertEqual(module_2_expected_path, find_dotted_module("namespacepkg.module_2", "test_method_2", None, 0)[0])
+        self.assertEqual(module_2_expected_path,
+                         find_dotted_module("namespacepkg.module_2", "test_method_2", None, 0)[0])
         self.assertEqual(module_2_expected_path, find_dotted_module(NAMESPACE_PKG, "module_2", None, 0)[0])
 
 
@@ -71,7 +67,7 @@ class TestDependencyBuilder(unittest.TestCase):
 
     def test_import_local_package(self):
         """Packages under the source roots should be included in the dependencies"""
-        self.check_dependencies("import_local_deps", [OTHER_PKG])
+        self.check_dependencies(IMPORT_LOCAL_DEPS_PKG, [OTHER_PKG])
 
     def test_import_namespace_package(self):
         """Namespace packages are included in dependency lists"""
@@ -84,7 +80,7 @@ class TestDependencyBuilder(unittest.TestCase):
         self.check_dependencies("builtin_import_pkg", [])
 
     def check_dependencies(self, package_name, expected, ignores=None, filter_local=False):
-        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH], ignores=["setup.py"])
+        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH], ignores=["*setup.py"])
         self.checker = DependencyBuilder(package_name, package.files, source_path=package.source_paths)
         deps = filter_ignored_dependencies(self.checker.build(), ignores)
         if filter_local:
