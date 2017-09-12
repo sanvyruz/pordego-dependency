@@ -23,6 +23,10 @@ def is_local_package(file_path, local_source_paths):
     return False
 
 
+def find_redundant_dependency_names(dependencies, allowed_dependency_names):
+    return set(allowed_dependency_names) - set([dependency.target_package for dependency in dependencies])
+
+
 def filter_ignored_dependencies(dependencies, ignore_dependency_names):
     return [d for d in dependencies if not is_ignored(d, ignore_dependency_names)]
 
