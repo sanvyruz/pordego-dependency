@@ -15,7 +15,7 @@ class DependencyCheckInput(object):
         :param allowed_dependency: Allowed dependency
         """
         self.input_package = input_package
-        self._allowed_dependency = allowed_dependency
+        self._allowed_dependency = allowed_dependency or []  # default to not allowing any dependencies
         self.source_paths = source_paths or []
         self.root = root or "."
         self.ignores = ignores or ""

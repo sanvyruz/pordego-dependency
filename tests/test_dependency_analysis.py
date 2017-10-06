@@ -34,6 +34,21 @@ class DependencyAnalysisTest(unittest.TestCase):
         # since IMPORT_LOCAL_DEPS_PKG depends on OTHER_PACKAGE
         self.assertTrue(analyzer.analyze(package_dependency_map).has_error)
 
+    def test_analysis_when_analysis_package_not_in_dependency_map(self):
+        """If a package in the analysis packages does not have an entry in the dependency map, do not allow any dependencies"""
+        config = DependencyConfig(
+            source_paths=[SOURCE_PATH],
+            analysis_packages=[IMPORT_LOCAL_DEPS_PKG],
+            dependency_map={}
+        )
+        root_cache = preload_packages(config.source_paths)
+        package_dependency_map = build_package_dependencies(config, root_cache)
+
+        analyzer = DependencyAnalyzer(config)
+
+        # since IMPORT_LOCAL_DEPS_PKG depends on OTHER_PACKAGE
+        self.assertTrue(analyzer.analyze(package_dependency_map).has_error)
+
     def test_analysis_with_redundancy_in_dependency_map(self):
         config = DependencyConfig(
             source_paths=[SOURCE_PATH],
