@@ -1,3 +1,9 @@
-from sf2_package1.module_tester import foo
+from namespacepkg import module_2
+from namespacepkg import module_1
+import json
 
-VALUE = foo()
+
+def foo():
+    module_1.test_method_1()
+    module_2.test_method_2()
+    json.dumps({"hi": "there"})

@@ -47,7 +47,8 @@ def is_builtin_root(root_path):
         python_basedir = os.path.split(os.path.dirname(sys.executable))[0]
     else:
         python_basedir = os.path.dirname(sys.executable)
-    return "site-packages" not in root_path and root_path.startswith(python_basedir)
+    path_parts = root_path.split(os.path.sep)
+    return "usr" in path_parts or ("site-packages" not in root_path and root_path.startswith(python_basedir))
 
 
 def is_builtin_module(module_path):

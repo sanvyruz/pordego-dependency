@@ -10,7 +10,7 @@ from pordego_dependency.dependency_tools import filter_ignored_dependencies, fil
 from snakefood.find import find_dotted_module, module_cache
 
 from tests.test_source_code_names import SOURCE_PATH, NS_PKG_1_NAME, NAMESPACE_PKG, NS_PKG_2_NAME, LOCAL_PACKAGE, \
-    TP_PKG, OTHER_PKG, IMPORT_LOCAL_DEPS_PKG
+    TP_PKG, OTHER_PKG, IMPORT_LOCAL_DEPS_PKG, SOURCE_FOLDER_PATH1
 
 
 class TestSnakefoodLib(unittest.TestCase):
@@ -19,8 +19,8 @@ class TestSnakefoodLib(unittest.TestCase):
 
     def test_find_package_paths(self):
         """Return a list of packages under a list of source directories"""
-        packages = find_package_paths([SOURCE_PATH])
-        expected = {os.path.abspath(os.path.join(SOURCE_PATH, path)) for path in os.listdir(SOURCE_PATH)}
+        packages = find_package_paths([SOURCE_FOLDER_PATH1])
+        expected = {os.path.abspath(os.path.join(SOURCE_FOLDER_PATH1, path)) for path in os.listdir(SOURCE_FOLDER_PATH1)}
         self.assertEqual(expected, packages)
 
     def test_preload_packages(self):
