@@ -9,7 +9,7 @@ from pordego_dependency.snakefood_lib import find_package_names
 class DependencyCheckInput(object):
 
     def __init__(self, input_package, allowed_dependency=None, root=None, source_paths=None,
-                 ignores=None):
+                 ignores=None, ignore_redundant=False):
         """
         :param input_package: package to check
         :param allowed_dependency: Allowed dependency
@@ -20,9 +20,14 @@ class DependencyCheckInput(object):
         self.root = root or "."
         self.ignores = ignores or ""
         self._package_path = None
+        self._ignore_redundant = ignore_redundant
 
     def __str__(self):
         return "Dependency Check on - {}".format(self.input_package)
+
+    @property
+    def ignore_redundant(self):
+        return self._ignore_redundant
 
     @property
     def package_path(self):
@@ -135,19 +140,23 @@ class DependencyConfig(object):
         """
         dependency_list = []
         for key in self.analysis_packages:
-            allowed_dependency = self.dependency_map.get(key, []) if self.dependency_map else []
             if key.endswith('/'):
                 source_paths = [os.path.join(base_path, key[:-1]) for base_path in self.source_paths]
                 analysis_packages = find_package_names(source_paths)
             else:
                 analysis_packages = [key]
                 source_paths = self.source_paths
+            allowed_dependency = self.dependency_map.get(key, []) if self.dependency_map else []
+            # if any deps are specified as folders, have to ignore redundant since we are adding all packages under
+            # the folder
+            ignore_redundant = any((dep.endswith('/') for dep in allowed_dependency))
             for package_name in analysis_packages:
                 dependency_list.append(DependencyCheckInput(package_name,
                                                             allowed_dependency=self.expand_allowed_dependencies(allowed_dependency),
                                                             root=self.root,
                                                             source_paths=source_paths,
-                                                            ignores=self._ignore))
+                                                            ignores=self._ignore,
+                                                            ignore_redundant=ignore_redundant))
         return dependency_list
 
     def expand_allowed_dependencies(self, allowed_dependency_list):

@@ -25,7 +25,7 @@ class DependencyAnalyzer(Analyzer):
                 result.update_invalid_dependencies(non_ignored_depends)
 
                 redundant_dependency_names = find_redundant_dependency_names(local_depends, allowed_dependency_names)
-                if redundant_dependency_names:
+                if redundant_dependency_names and not dependency_input.ignore_redundant:
                     result.update_redundant_dependency_names(dependency_input.input_package, redundant_dependency_names)
         return result
 
