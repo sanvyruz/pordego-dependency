@@ -75,7 +75,7 @@ class DependencyConfig(object):
         :param analysis_packages: List of packages to run checks on (default all)
         :param dependency_map: Map of paths or packages to paths or packages of allowed dependencies
         """
-        self._source_paths = source_paths
+        self._source_paths = source_paths or []
         self._all_packages = None
         self._root = root
         self._analysis_packages = analysis_packages or self.all_found_packages
@@ -135,11 +135,30 @@ class DependencyConfig(object):
         """
         dependency_list = []
         for key in self.analysis_packages:
-            allowed_dependency = self.dependency_map.get(key) if self.dependency_map else None
-            dependency_list.append(DependencyCheckInput(key, allowed_dependency=allowed_dependency,
-                                                        root=self.root, source_paths=self.source_paths,
-                                                        ignores=self._ignore))
+            allowed_dependency = self.dependency_map.get(key, []) if self.dependency_map else []
+            if key.endswith('/'):
+                source_paths = [os.path.join(base_path, key[:-1]) for base_path in self.source_paths]
+                analysis_packages = find_package_names(source_paths)
+            else:
+                analysis_packages = [key]
+                source_paths = self.source_paths
+            for package_name in analysis_packages:
+                dependency_list.append(DependencyCheckInput(package_name,
+                                                            allowed_dependency=self.expand_allowed_dependencies(allowed_dependency),
+                                                            root=self.root,
+                                                            source_paths=source_paths,
+                                                            ignores=self._ignore))
         return dependency_list
+
+    def expand_allowed_dependencies(self, allowed_dependency_list):
+        expanded_allowed_dependencies = []
+        for dep in allowed_dependency_list:
+            if dep.endswith("/"):
+                expanded_allowed_dependencies.extend(
+                    find_package_names([os.path.join(base_path, dep[:-1]) for base_path in self.source_paths]))
+            else:
+                expanded_allowed_dependencies.append(dep)
+        return expanded_allowed_dependencies
 
 
 def parse_line(line):
