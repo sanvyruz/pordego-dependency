@@ -48,7 +48,7 @@ class DependencyAnalysisResult(AnalysisResult):
         if self.invalid_dependencies:
             errors.append("Found {} dependency violations:\n{}".format(len(self.invalid_dependencies),
                                                                        "\n".join([str(i) for i in
-                                                                                  self.invalid_dependencies])))
+                                                                                  self._sorted_deps()])))
         if self.redundant_dependencies:
             for package, dependencies in self.redundant_dependencies.iteritems():
                 errors.append("Following dependencies of {} are redundant: {}".format(package, ", ".join(dependencies)))
@@ -56,3 +56,6 @@ class DependencyAnalysisResult(AnalysisResult):
 
     def update_redundant_dependency_names(self, input_package, redundant_dependency_names):
         self.redundant_dependencies[input_package] |= redundant_dependency_names
+
+    def _sorted_deps(self):
+        return sorted(self.invalid_dependencies, key=lambda dep: dep.source_package)
