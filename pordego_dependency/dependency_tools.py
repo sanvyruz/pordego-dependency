@@ -13,7 +13,7 @@ def filter_local_dependencies(dependencies, local_source_paths):
     :type dependencies: list[pordego_dependency.snakefood_lib.Dependency]
     :param local_source_paths: list of paths containing python packages
     """
-    return [d for d in dependencies if is_local_package(d.target_path, local_source_paths)]
+    return [d for d in dependencies if not d.is_unknown and is_local_package(d.target_path, local_source_paths)]
 
 
 def is_local_package(file_path, local_source_paths):

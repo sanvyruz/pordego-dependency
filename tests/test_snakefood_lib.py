@@ -65,6 +65,16 @@ class TestDependencyBuilder(unittest.TestCase):
         when filter_local_dependencies is called"""
         self.check_dependencies("third_party_import_external", [], filter_local=True)
 
+    def test_import_not_installed_third_party_from_curdir(self):
+        """Third party packages which are not installed in the local environment should be removed from the list of dependencies
+        when filter_local_dependencies is called- this should also work when looking for packages in the current dir"""
+        curdir = os.path.abspath(".")
+        os.chdir(SOURCE_PATH)
+        try:
+            self.check_dependencies("third_party_import_external", [], filter_local=True, source_paths=["."])
+        finally:
+            os.chdir(curdir)
+
     def test_import_local_package(self):
         """Packages under the source roots should be included in the dependencies"""
         self.check_dependencies(IMPORT_LOCAL_DEPS_PKG, [OTHER_PKG])
@@ -79,12 +89,13 @@ class TestDependencyBuilder(unittest.TestCase):
         """Builtin packages should not show up in the list of dependencies"""
         self.check_dependencies("builtin_import_pkg", [])
 
-    def check_dependencies(self, package_name, expected, ignores=None, filter_local=False):
-        package = DependencyCheckInput(package_name, source_paths=[SOURCE_PATH], ignores=["*setup.py"])
+    def check_dependencies(self, package_name, expected, ignores=None, filter_local=False, source_paths=None):
+        source_paths = source_paths or [SOURCE_PATH]
+        package = DependencyCheckInput(package_name, source_paths=source_paths, ignores=["*setup.py"])
         self.checker = DependencyBuilder(package_name, package.files, source_path=package.source_paths)
         deps = filter_ignored_dependencies(self.checker.build(), ignores)
         if filter_local:
-            deps = filter_local_dependencies(deps, [SOURCE_PATH])
+            deps = filter_local_dependencies(deps, source_paths)
         dep_package_list = [dep.target_package for dep in deps]
         print "Found deps\n{}\n".format(format_deps(deps))
         self.assertItemsEqual(expected, dep_package_list)

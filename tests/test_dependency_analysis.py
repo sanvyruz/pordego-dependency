@@ -1,13 +1,12 @@
-import unittest
-
 import os
+import unittest
 
 from pordego_dependency.dependency_analysis import DependencyAnalyzer
 from pordego_dependency.dependency_config import DependencyConfig
 from pordego_dependency.entry_point import build_package_dependencies
 from pordego_dependency.snakefood_lib import preload_packages
-from tests.test_source_code_names import SOURCE_PATH, IMPORT_LOCAL_DEPS_PKG, SOURCE_FOLDER_PATH1, SOURCE_FOLDER_PATH2, \
-    SOURCE_FOLDER_PACKAGE_NAME1, SOURCE_FOLDER_PACKAGE_NAME2
+from tests.test_source_code_names import SOURCE_PATH, IMPORT_LOCAL_DEPS_PKG, SOURCE_FOLDER_PACKAGE_NAME1, \
+    SOURCE_FOLDER_PACKAGE_NAME2
 
 
 class DependencyAnalysisTest(unittest.TestCase):
