@@ -21,8 +21,10 @@ VERSION = "1.2.2"
 setup(
     name='pordego-dependency3',
     version=VERSION,
-    license=LICENSE,
+    license="GPLv2",
     description='Pordego plugin for code complexity analysis using the snakefood library',
+    long_description=open('README.rst').read(),
+    long_description_content_type='text/x-rst',
     author='Sandeep Cavale',
     author_email='sandeepcavale@gmail.com',
     url="https://github.com/sanvyruz/pordego-dependency",
