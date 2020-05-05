@@ -1,10 +1,5 @@
 from setuptools import setup, find_packages
 
-
-with open('LICENSE') as f:
-    LICENSE = f.read()
-
-
 CLASSIFIERS = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -16,7 +11,7 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 3.7"
 ]
 
-VERSION = "1.2.2"
+VERSION = "1.2.2.1"
 
 setup(
     name='pordego-dependency3',
