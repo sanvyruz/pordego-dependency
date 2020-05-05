@@ -11,20 +11,22 @@ CLASSIFIERS = [
     "License :: OSI Approved :: GNU General Public License v2 (GPLv2)",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2.7"
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7"
 ]
 
 VERSION = "1.2.2"
 
 setup(
-    name='pordego-dependency',
+    name='pordego-dependency3',
     version=VERSION,
     license=LICENSE,
     description='Pordego plugin for code complexity analysis using the snakefood library',
-    author='Tim Treptow',
-    author_email='tim.treptow@gmail.com',
-    url="https://github.com/ttreptow/pordego-dependency",
-    download_url="https://github.com/ttreptow/pordego-dependency/tarball/{}".format(VERSION),
+    author='Sandeep Cavale',
+    author_email='sandeepcavale@gmail.com',
+    url="https://github.com/sanvyruz/pordego-dependency",
+    download_url="https://github.com/sanvyruz/pordego-dependency/tarball/{}".format(VERSION),
     packages=find_packages(exclude=('tests', 'docs', "tests.*")),
     install_requires=["snakefood", "requests"],
     classifiers=CLASSIFIERS,

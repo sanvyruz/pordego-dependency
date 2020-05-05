@@ -1,9 +1,11 @@
-pordego-dependency
-==================
+pordego-dependency3
+===================
 
 Summary
 -------
 `Pordego <https://github.com/ttreptow/pordego>`_ plugin that analyzes package dependencies using the `Snakefood <https://pypi.python.org/pypi/snakefood>`_ library.
+
+Forked for Python3 support.
 
 Configuration
 -------------
